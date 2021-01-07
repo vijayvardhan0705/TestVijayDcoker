@@ -1,0 +1,50 @@
+on: [push]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    
+    - uses: azure/docker-login@v1
+      with:
+        login-server: testacrvijay.azurecr.io
+        username: ${{ secrets.acr_testacrvijay_username }}
+        password: ${{ secrets.acr_testacrvijay_password }}
+    
+    - name: Build and push image to ACR
+      id: build-image
+      run: |
+        docker build "$GITHUB_WORKSPACE/app" -f  "app/Dockerfile" -t testacrvijay.azurecr.io/testaks:${{ github.sha }}
+        docker push testacrvijay.azurecr.io/testaks:${{ github.sha }}
+    
+    - uses: azure/k8s-set-context@v1
+      with:
+         kubeconfig: ${{ secrets.aks_testaks_kubeConfig }}
+      id: login
+    
+    - name: Create namespace
+      run: |
+        namespacePresent=`kubectl get namespace | grep testaks9f29 | wc -l`
+        if [ $namespacePresent -eq 0 ]
+        then
+            echo `kubectl create namespace testaks9f29`
+        fi
+
+    - uses: azure/k8s-create-secret@v1
+      with:
+        namespace: testaks9f29
+        container-registry-url: testacrvijay.azurecr.io
+        container-registry-username: ${{ secrets.acr_testacrvijay_username }}
+        container-registry-password: ${{ secrets.acr_testacrvijay_password }}
+        secret-name: testaksdockerauth
+       
+    - uses: azure/k8s-deploy@v1.2
+      with:
+        namespace: testaks9f29
+        manifests: |
+          manifests/deployment.yml
+          manifests/service.yml
+        images: |
+          testacrvijay.azurecr.io/testaks:${{ github.sha }}
+        imagepullsecrets: |
+          testaksdockerauth
