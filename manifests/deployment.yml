@@ -1,0 +1,19 @@
+apiVersion : apps/v1
+kind: Deployment
+metadata:
+  name: "testaks-11ee"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: "testaks-11ee"
+  template:
+    metadata:
+      labels:
+        app: "testaks-11ee"
+    spec:
+      containers:
+        - name: "testaks-11ee"
+          image: "testacrvijay.azurecr.io/testaks"
+          ports:
+          - containerPort: 8080
